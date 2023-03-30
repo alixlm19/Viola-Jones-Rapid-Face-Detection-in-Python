@@ -30,6 +30,9 @@ class HaarFeature:
         self.positive_regions = positive_regions
         self.negative_regions = negative_regions
 
+    def invert(self):
+        return HaarFeature(self.negative_regions, self.positive_regions)
+
     def value(self, ii, scale: float = 1.0) -> float:
         sum_pos_reg = sum((r.intensity(ii, scale) for r in self.positive_regions))
         sum_neg_reg = sum((r.intensity(ii, scale) for r in self.negative_regions))
@@ -47,11 +50,13 @@ def build_features(
             for x in range(0, width - w, shift):
                 for y in range(0, height - h, shift):
 
-                    # c : current
-                    # r : right
-                    # rr: right-right
-                    # b : bottom
-                    # br: bottom-right
+                    # c : current region
+                    # r : right region
+                    # rr: right-right region
+                    # b : bottom region
+                    # br: bottom-right region
+                    # ▓ : positive region
+                    # ░ : negative region
 
                     c_reg: Region = Region(x, y, w, h)
                     r_reg: Region = Region(x + w, y, w, h)
@@ -59,19 +64,31 @@ def build_features(
                     b_reg: Region = Region(x, y + h, w, h)
                     br_reg: Region = Region(x + w, y + h, w, h)
 
+                    # [Haar] 2 rectagles
+                    # Horizontal ▓░
                     if x + w * 2 < width:
-                        features.append(HaarFeature([c_reg], [r_reg]))
+                        hf: HaarFeature = HaarFeature([c_reg], [r_reg])
+                        features.append(hf)
 
-                    # Vertical (w-b)
+                    # Vertical ░
+                    #          ▓
                     if y + h * 2 < height:
-                        features.append(HaarFeature([b_reg], [c_reg]))
+                        hf: HaarFeature = HaarFeature([b_reg], [c_reg])
+                        features.append(hf)
+                        features.append(hf.invert())
 
-                    # [Haar] 3 rectagles *********
+                    # [Haar] 3 rectagles 
+                    # Horizontal ▓░▓
                     if x + w * 3 < width:
-                        features.append(HaarFeature([c_reg, rr_reg], [r_reg]))
+                        hf: HaarFeature = HaarFeature([c_reg, rr_reg], [r_reg])
+                        features.append(hf)
+                        features.append(hf.invert())
 
-                    # [Haar] 4 rectagles *********
+                    # [Haar] 4 rectagles ▓░
+                    #                    ░▓
                     if x + w * 2 < width and y + h * 2 < height:
-                        features.append(HaarFeature([c_reg, br_reg], [b_reg, r_reg]))
+                        hf: HaarFeature = HaarFeature([c_reg, br_reg], [b_reg, r_reg])
+                        features.append(hf)
+                        features.append(hf.invert())
 
     return np.array(features)

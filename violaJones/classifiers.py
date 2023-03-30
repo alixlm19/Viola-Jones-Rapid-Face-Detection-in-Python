@@ -1,5 +1,5 @@
 from .haarFeatures import HaarFeature
-from .utils import WAE
+from .utils import WAE, initialize_weights
 import numpy as np
 
 
@@ -28,11 +28,18 @@ class VJClassifier:
     Michael Jones https://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-cvpr-01.pdf.
     """
 
-    def __init__(self, num_features: int, betas: np.ndarray[float]) -> None:
-        # self.alphas: np.ndarray = np.array(np.log(1 / betas))
-        self.alphas: np.ndarray = ...
-        self.classifiers: np.ndarray[WeakClassifier] = ...
-        self.weights: np.ndarray[float] = ...
+    def __init__(self,
+                 classifiers: np.ndarray,
+                 num_negative: int,
+                 num_positive) -> None:
+                 
+        self.alphas: np.ndarray[float] = np.zeros(len(classifiers))
+        self.classifiers: np.ndarray[WeakClassifier] = classifiers
+        self.weights: np.ndarray[float] = initialize_weights(
+            len(classifiers),
+            num_negative,
+            num_positive
+        )
 
     def classify(self, x):
         """Final Strong Classification"""
@@ -43,12 +50,17 @@ class VJClassifier:
 
         return int(sum_weighted_classification >= sum_half_alphas)
 
+    def __update_alphas(self, betas) -> None:
+        self.alphas = 1 / np.log(betas)
+
     def __update_weights(self,
                          errors: np.ndarray[float],
                          classifications: np.ndarray[int]) -> None:
         betas: np.ndarray[float] = errors / (1 - errors)
         self.weights[1:] = self.weights[:-1] * \
             np.power(betas, 1 - classifications)
+
+        self.__update_alphas(betas)
 
     def train(self, X, y):
         

@@ -1,3 +1,5 @@
+import numpy as np
+
 class Region:
 
     def __init__(self, x: int, y: int, w: int, h: int) -> None:
@@ -5,7 +7,6 @@ class Region:
         self.width: int = w
         self.height: int = h
 
-    @property
     def intensity(self, ii, scale: float = 1.0) -> int:
         x, y = self.pos
         x1: int = int(x * scale)
@@ -23,7 +24,6 @@ class Region:
 
         return D - B - C + A
 
-
 class HaarFeature:
 
     def __init__(self, positive_regions, negative_regions):
@@ -36,5 +36,42 @@ class HaarFeature:
 
         return sum_neg_reg - sum_pos_reg
 
-def build_features():
-    pass
+def build_features(
+    width, height,
+    shift: int = 1,
+    min_w: int = 4, min_h: int = 4) -> np.ndarray[HaarFeature]:
+
+    features = []
+    for w in range(min_w, width + 1):
+        for h in range(min_h, height + 1):
+            for x in range(0, width - w, shift):
+                for y in range(0, height - h, shift):
+
+                    # c : current
+                    # r : right
+                    # rr: right-right
+                    # b : bottom
+                    # br: bottom-right
+
+                    c_reg: Region = Region(x, y, w, h)
+                    r_reg: Region = Region(x + w, y, w, h)
+                    rr_reg: Region = Region(x + 2 * w, y, w, h)
+                    b_reg: Region = Region(x, y + h, w, h)
+                    br_reg: Region = Region(x + w, y + h, w, h)
+
+                    if x + w * 2 < width:
+                        features.append(HaarFeature([c_reg], [r_reg]))
+
+                    # Vertical (w-b)
+                    if y + h * 2 < height:
+                        features.append(HaarFeature([b_reg], [c_reg]))
+
+                    # [Haar] 3 rectagles *********
+                    if x + w * 3 < width:
+                        features.append(HaarFeature([c_reg, rr_reg], [r_reg]))
+
+                    # [Haar] 4 rectagles *********
+                    if x + w * 2 < width and y + h * 2 < height:
+                        features.append(HaarFeature([c_reg, br_reg], [b_reg, r_reg]))
+
+    return np.array(features)
